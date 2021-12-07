@@ -1,5 +1,4 @@
 import os
-import datetime
 import math
 import cv2
 import numpy as np
@@ -87,11 +86,14 @@ def main():
     cTime = 0
 
     myPath = os.path.join(os.getcwd(), 'pose_data_2')
-
     result_dict = {0: 'Go-', 1: 'Choki', 2: 'Paa-'}
-    ridge_cls = load_model('Final_Ridge_Model')
+
+    # modelの読み込み
+    # ridge_cls = load_model('Final_Ridge_Model')
     # ridge_cls = load_model('Final_QDA_Model')
     # print(ridge_cls)
+    with open('myPipe.dat', 'rb') as f:
+        ridge_cls = pickle.load(f)
 
     clmn_lst = [str(i) for i in range(1,21)]
     clmn_lst.append('cls')
@@ -104,6 +106,7 @@ def main():
 
     detector = handDetector(maxHands=1, detectionCon=0.8, trackCon=0.8)
 
+    # Training dataset収集用
     lmList_save = []
     wkCounter = 0
 
@@ -114,9 +117,15 @@ def main():
         if len(lmList) != 0:
             dist_lst = get_distance(lmList)
             df.loc[0] = dist_lst
-            df_pred = predict_model(ridge_cls, data=df)
 
-            cv2.putText(img, "You:" + result_dict[df_pred.loc[0, 'Label']], 
+            # # PycaretでRedgeCls
+            # df_pred = predict_model(ridge_cls, data=df)
+            # rtn = df_pred.loc[0, 'Label']
+
+            # sklearnでRedgeCls
+            rtn = int(ridge_cls.predict(df.iloc[0:1, 0:20]))   # 最後の'cls'除く
+
+            cv2.putText(img, "You:" + result_dict[rtn], 
                         (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 3)
 
             # Training dataset収集用　100個溜まったら書き出す。
@@ -134,12 +143,16 @@ def main():
         cTime = time.time()
         fps = 1 / (cTime - pTime)
         pTime = cTime
-        cv2.putText(img, str(int(fps)), (10, 100), cv2.FONT_HERSHEY_PLAIN, 3,
+        cv2.putText(img, str(int(fps)), (10, 100), cv2.FONT_HERSHEY_PLAIN, 2,
                     (255, 0, 255), 3)
 
         cv2.imshow("Image", img)
-        cv2.waitKey(1)
-
+        # cv2.waitKey(1)
+        key = cv2.waitKey(1)
+        # Press esc or 'q' to close the image window
+        if key & 0xFF == ord('q') or key == 27:
+            cv2.destroyAllWindows()
+            break
 
 if __name__ == "__main__":
     main()
